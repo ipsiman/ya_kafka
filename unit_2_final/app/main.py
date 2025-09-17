@@ -1,12 +1,20 @@
+import os
 import faust
 from typing import Optional
 from .censor import censor_text
+from .constants import BlockAction
+
+
+# Читаем настройки из переменных окружения
+KAFKA_BROKER = os.getenv('KAFKA_BROKER', 'kafka://localhost:9092')
+APP_STORE = os.getenv('APP_STORE', 'memory://')
+APP_NAME = os.getenv('APP_NAME', 'app_name')
 
 # Создаём приложение
 app = faust.App(
-    'message-filter-app',
-    broker='kafka://kafka-0:9092,kafka-1:9092,kafka-2:9092',
-    store='memory://'
+    id=APP_NAME,
+    broker=KAFKA_BROKER,
+    store=APP_STORE
 )
 
 # Модели
@@ -19,7 +27,7 @@ class Message(faust.Record, serializer='json'):
 class BlockedUsersUpdate(faust.Record, serializer='json'):
     user: str
     blocked_user: str
-    action: str  # "add" или "remove"
+    action: BlockAction
 
 # Топики (Kafka создаст их автоматически при первой записи)
 messages_topic = app.topic('messages', value_type=Message)
@@ -44,12 +52,15 @@ async def process_blocked_users(updates):
 
         current_list = set(blocked_users_table[user])
 
-        if action == "add":
+        if action == BlockAction.ADD:
             current_list.add(blocked_user)
             print(f"{user} заблокировал {blocked_user}")
-        elif action == "remove":
+        elif action == BlockAction.REMOVE:
             current_list.discard(blocked_user)
             print(f"{user} разблокировал {blocked_user}")
+        else:
+            print(f"Неизвестная операция {action} для {user}")
+            continue
 
         blocked_users_table[user] = list(current_list)
 

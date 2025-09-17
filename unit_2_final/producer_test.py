@@ -41,7 +41,7 @@ print("Отправка команды блокировки...")
 block_command = {
     "user": "alice",
     "blocked_user": "bob",
-    "action": "add"
+    "action": "addd"
 }
 
 producer.produce(
