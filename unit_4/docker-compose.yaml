@@ -131,6 +131,22 @@ services:
       POSTGRES_PASSWORD: postgres-pw
       # Название базы данных
       POSTGRES_DB: customers
+    volumes:
+      - ./postgres/custom-config.conf:/etc/postgresql/postgresql.conf
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    networks:
+      - proxynet
+
+  debezium-ui:
+    image: quay.io/debezium/debezium-ui:latest
+    platform: linux/amd64
+    container_name: debezium-ui
+    ports:
+      - "127.0.0.1:8085:8080"
+    environment:
+      KAFKA_CONNECT_URIS: http://kafka-connect:8083
+    depends_on:
+      - kafka-connect
     networks:
       - proxynet
 
@@ -197,7 +213,7 @@ services:
     build:
       context: ./grafana
     ports:
-      - 3000:3000
+      - "3000:3000"
     networks:
       - proxynet
 

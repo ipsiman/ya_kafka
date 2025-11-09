@@ -66,3 +66,57 @@ http://localhost:8083/connectors/postgres-source/config
 # статус коннектора postgres-source
 curl -X GET http://localhost:8083/connectors/postgres-source/status | jq
 
+# информацию о кластере Kafka Connect
+curl -s localhost:8083 | jq
+
+# информацию о плагинах коннекторов
+curl localhost:8083/connector-plugins | jq
+
+# Коннектор Debezium для PostgreSQL
+{
+ "name": "pg-connector",
+ "config": {
+   "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+   "database.hostname": "postgres",
+   "database.port": "5432",
+   "database.user": "postgres-user",
+   "database.password": "postgres-pw",
+   "database.dbname": "customers",
+   "database.server.name": "customers",
+   "table.whitelist": "public.users",
+   "transforms": "unwrap",
+   "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
+   "transforms.unwrap.drop.tombstones": "false",
+   "transforms.unwrap.delete.handling.mode": "rewrite",
+   "topic.prefix": "users",
+   "topic.creation.enable": "true",
+   "topic.creation.default.replication.factor": "-1",
+   "topic.creation.default.partitions": "-1",
+   "skipped.operations": "none"
+ }
+}
+
+curl -X POST -H 'Content-Type: application/json' --data @connector.json http://localhost:8083/connectors/pg-connector/config
+
+curl -X PUT \
+-H "Content-Type: application/json" \
+--data '{
+   "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+   "database.hostname": "postgres",
+   "database.port": "5432",
+   "database.user": "postgres-user",
+   "database.password": "postgres-pw",
+   "database.dbname": "customers",
+   "database.server.name": "customers",
+   "table.whitelist": "public.users",
+   "transforms": "unwrap",
+   "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
+   "transforms.unwrap.drop.tombstones": "false",
+   "transforms.unwrap.delete.handling.mode": "rewrite",
+   "topic.prefix": "users",
+   "topic.creation.enable": "true",
+   "topic.creation.default.replication.factor": "-1",
+   "topic.creation.default.partitions": "-1",
+   "skipped.operations": "none"
+ }' \
+http://localhost:8083/connectors/pg-connector/config
