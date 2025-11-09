@@ -1,0 +1,68 @@
+curl -X PUT \
+-H "Content-Type: application/json" \
+--data '{
+"name": "file-stream-sink",
+"connector.class": "org.apache.kafka.connect.file.FileStreamSinkConnector",
+"tasks.max": "1",
+"topics": "mytopic",
+"file": "mytopic.out",
+"key.converter": "org.apache.kafka.connect.storage.StringConverter",
+"value.converter": "org.apache.kafka.connect.storage.StringConverter",
+"key.converter.schemas.enable": "false",
+"value.converter.schemas.enable": "false"
+}' \
+http://localhost:8083/connectors/file-stream-sink/config | jq
+
+# состояние коннектора:
+curl -X GET http://localhost:8083/connectors/file-stream-sink/status | jq
+
+curl -X GET http://localhost:8083/connectors/file-stream-sink/tasks/0/status | jq
+
+# какие плагины коннекторов сейчас установлены
+curl localhost:8083/connector-plugins
+
+# коннектор JdbcSourceConnector
+curl -X PUT \
+-H "Content-Type: application/json" \
+--data '{
+"connector.class":"io.confluent.connect.jdbc.JdbcSourceConnector",
+"tasks.max":"1",
+"connection.url":"jdbc:postgresql://postgres:5432/customers?user=postgres-user&password=postgres-pw&useSSL=false",
+"connection.attempts":"5",
+"connection.backoff.ms":"50000",
+"mode":"bulk",
+"topic.prefix":"postgresql-jdbc-bulk-",
+"table.whitelist": "users",
+"poll.interval.ms": "20000"
+}' \
+http://localhost:8083/connectors/postgres-source/config
+
+
+# коннектор JdbcSourceConnector с трансформацией для новой таблицы users
+curl -X PUT \
+-H "Content-Type: application/json" \
+--data '{
+"connector.class":"io.confluent.connect.jdbc.JdbcSourceConnector",
+"tasks.max":"1",
+"connection.url":"jdbc:postgresql://postgres:5432/customers?user=postgres-user&password=postgres-pw&useSSL=false",
+"connection.attempts":"5",
+"connection.backoff.ms":"50000",
+"mode":"timestamp",
+"timestamp.column.name":"updated_at",
+"topic.prefix":"postgresql-jdbc-bulk-",
+"table.whitelist": "users",
+"poll.interval.ms": "200",
+"batch.max.rows": 500,
+"producer.override.linger.ms": 200,
+"producer.override.batch.size": 300000,
+"producer.override.buffer.memory": 33554432,
+"transforms":"MaskField",
+"transforms.MaskField.type":"org.apache.kafka.connect.transforms.MaskField$Value",
+"transforms.MaskField.fields":"private_info",
+"transforms.MaskField.replacement":"CENSORED"
+}' \
+http://localhost:8083/connectors/postgres-source/config
+
+# статус коннектора postgres-source
+curl -X GET http://localhost:8083/connectors/postgres-source/status | jq
+
