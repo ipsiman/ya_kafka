@@ -1,0 +1,53 @@
+# Информация о кластере Kafka Connect
+curl -s localhost:8083 | jq
+
+# Информация о плагинах коннекторов
+curl localhost:8083/connector-plugins | jq
+
+# Коннектор Debezium для PostgreSQL
+curl -X PUT \
+-H "Content-Type: application/json" \
+--data '{
+   "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+   "database.hostname": "postgres",
+   "database.port": "5432",
+   "database.user": "postgres-user",
+   "database.password": "postgres-pw",
+   "database.dbname": "customers",
+   "database.server.name": "customers",
+   "slot.name": "debezium_slot",
+   "table.include.list": "public.users,public.orders",
+   "snapshot.mode": "initial",
+   "decimal.handling.mode": "precise",
+   "include.schema.changes": "true",
+   "heartbeat.interval.ms": "10000",
+   "transforms": "unwrap",
+   "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
+   "transforms.unwrap.drop.tombstones": "false",
+   "transforms.unwrap.delete.handling.mode": "rewrite",
+   "topic.prefix": "users",
+   "topic.creation.enable": "true",
+   "topic.creation.default.replication.factor": "-1",
+   "topic.creation.default.partitions": "-1",
+   "skipped.operations": "none"
+ }' \
+http://localhost:8083/connectors/pg-deb-connector/config
+
+# Проверьте статус коннектора и убедитесь, что он работает корректно
+curl -s localhost:8083/connectors/pg-deb-connector/status | jq
+
+# Удалить коннектор при необходимости
+curl -X DELETE http://localhost:8083/connectors/pg-deb-connector
+
+# Просмотрите сообщения в топиках
+docker exec -it unit_4_final-schema-registry-1 kafka-avro-console-consumer \
+  --bootstrap-server kafka-0:9092 \
+  --topic users.public.users \
+  --from-beginning \
+  --property schema.registry.url=http://schema-registry:8081
+
+docker exec -it unit_4_final-schema-registry-1 kafka-avro-console-consumer \
+  --bootstrap-server kafka-0:9092 \
+  --topic users.public.orders \
+  --from-beginning \
+  --property schema.registry.url=http://schema-registry:8081
