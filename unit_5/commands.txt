@@ -1,0 +1,131 @@
+# Создадим приватный ключ и запрос на сертификат (CSR)
+openssl req -new \
+    -newkey rsa:2048 \
+    -keyout kafka-1-creds/kafka-1.key \
+    -out kafka-1-creds/kafka-1.csr \
+    -config kafka-1-creds/kafka-1.cnf \
+    -nodes
+
+# Создадим сертификат брокера, подписанный CA
+openssl x509 -req \
+    -days 3650 \
+    -in kafka-1-creds/kafka-1.csr \
+    -CA ca.crt \
+    -CAkey ca.key \
+    -CAcreateserial \
+    -out kafka-1-creds/kafka-1.crt \
+    -extfile kafka-1-creds/kafka-1.cnf \
+    -extensions v3_req
+
+# Создадим PKCS12-хранилище
+openssl pkcs12 -export \
+    -in kafka-1-creds/kafka-1.crt \
+    -inkey kafka-1-creds/kafka-1.key \
+    -chain \
+    -CAfile ca.pem \
+    -name kafka-1 \
+    -out kafka-1-creds/kafka-1.p12 \
+    -password pass:your-password
+
+# Создадим keystore для Kafka
+keytool -importkeystore \
+    -deststorepass your-password \
+    -destkeystore kafka-1-creds/kafka.kafka-1.keystore.pkcs12 \
+    -srckeystore kafka-1-creds/kafka-1.p12 \
+    -deststoretype PKCS12  \
+    -srcstoretype PKCS12 \
+    -noprompt \
+    -srcstorepass your-password
+
+# Создадим truststore для Kafka
+keytool -import \
+    -file ca.crt \
+    -alias ca \
+    -keystore kafka-1-creds/kafka.kafka-1.truststore.jks \
+    -storepass your-password \
+    -noprompt
+
+
+
+
+
+
+docker exec -it kafka-1 bash
+
+kafka-acls --authorizer-properties zookeeper.connect=zookeeper:2181 \
+--add --allow-principal User:alice --operation Read --topic orders
+
+kafka-acls --authorizer-properties zookeeper.connect=zookeeper:2181 \
+--remove --allow-principal User:alice --operation Read --topic orders
+
+## Разрешаем admin создавать топики:
+kafka-acls --authorizer-properties zookeeper.connect=zookeeper:2181 \
+  --add --allow-principal User:admin --operation Create --cluster
+
+## Разрешаем admin удалять старые топики:
+kafka-acls --authorizer-properties zookeeper.connect=zookeeper:2181 \
+  --add --allow-principal User:admin --operation Delete --topic old-data
+
+## Посмотреть текущие ACL, используйте команду:
+kafka-acls --authorizer-properties zookeeper.connect=zookeeper:2181 --list
+
+
+
+kafka-acls --bootstrap-server kafka-1:9092 \
+  --command-config /tmp/adminclient-configs.conf \
+  --add --allow-principal User:user \
+  --operation read --operation write \
+  --topic test
+
+
+
+
+echo 'security.protocol=SASL_SSL' > /tmp/adminclient-configs.conf
+echo 'sasl.mechanism=PLAIN' >> /tmp/adminclient-configs.conf
+echo 'sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="controller_user" password="bitnami";' >> /tmp/adminclient-configs.conf
+echo 'ssl.keystore.location=/etc/kafka/secrets/kafka.kafka-1.keystore.pkcs12' >> /tmp/adminclient-configs.conf
+echo 'ssl.keystore.password=your-password' >> /tmp/adminclient-configs.conf
+echo 'ssl.key.password=your-password' >> /tmp/adminclient-configs.conf
+echo 'ssl.truststore.location=/etc/kafka/secrets/kafka.kafka-1.truststore.jks' >> /tmp/adminclient-configs.conf
+echo 'ssl.truststore.password=your-password' >> /tmp/adminclient-configs.conf
+echo 'ssl.endpoint.identification.algorithm=' >> /tmp/adminclient-configs.conf
+
+
+
+## Команда для создания топиков и настройки acl
+
+docker exec -it unit_5-kafka-1-1 bash
+
+kafka-topics --create --topic test-topic --partitions 3 --replication-factor 3 \
+--bootstrap-server kafka-1:1092 --command-config /etc/kafka/secrets/client.properties
+
+
+kafka-acls --bootstrap-server kafka-1:1092 \
+--add --allow-principal User:producer --operation WRITE --topic sasl-plain-topic \
+--command-config /etc/kafka/secrets/client.properties
+
+kafka-acls --bootstrap-server kafka-1:1092 \
+--add --allow-principal User:producer --operation Describe --topic sasl-plain-topic \
+--command-config /etc/kafka/secrets/client.properties
+
+
+
+## Команда для просмотра acl
+kafka-acls --bootstrap-server kafka-1:1092 \
+  --list \
+  --command-config /etc/kafka/secrets/client.properties
+
+## Команда для добавления acl для группы consumer-sasl-group
+kafka-acls --bootstrap-server kafka-1:1092 \
+  --add --allow-principal User:consumer \
+  --operation Read \
+  --group consumer-sasl-group \
+  --command-config /etc/kafka/secrets/client.properties
+
+kafka-acls --bootstrap-server kafka-1:1092 \
+  --add --allow-principal User:consumer \
+  --operation Describe \
+  --group consumer-sasl-group \
+  --command-config /etc/kafka/secrets/client.properties
+
+
