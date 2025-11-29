@@ -1,0 +1,15 @@
+# Информация о кластере Kafka Connect
+curl -s localhost:8083 | jq
+
+# Просмотрите сообщения в топиках
+docker exec -it unit_4_final-schema-registry-1 kafka-avro-console-consumer \
+  --bootstrap-server kafka-0:9092 \
+  --topic users.public.users \
+  --from-beginning \
+  --property schema.registry.url=http://schema-registry:8081
+
+docker exec -it unit_4_final-schema-registry-1 kafka-avro-console-consumer \
+  --bootstrap-server kafka-0:9092 \
+  --topic users.public.orders \
+  --from-beginning \
+  --property schema.registry.url=http://schema-registry:8081
