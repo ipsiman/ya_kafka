@@ -96,19 +96,19 @@ curl -u producer:password_producer \
 
 #### Реализация продюсера
 
-**Код продюсера:** `producer.py`
+**Код продюсера:** `producer_avro.py`
 
 
 #### Реализация консьюмера
 
-**Код консьюмера:** `consumer.py`
+**Код консьюмера:** `consumer_avro.py`
 
 
 ## Результаты тестирования
 
 ### Запуск продюсера
 ```bash
-python producer.py
+python producer_avro.py
 ```
 
 **Логи продюсера (фрагмент):**
@@ -124,7 +124,7 @@ python producer.py
 
 ### Запуск консьюмера
 ```bash
-python consumer.py
+python consumer_avro.py
 ```
 
 **Логи консьюмера (фрагмент):**
@@ -173,9 +173,12 @@ python consumer.py
 
 # Задание 2. Интеграция Kafka, NiFi и PostgreSQL
 
+**Код продюсера:** `producer_nifi.py`
+
 **Логи консьюмера (фрагмент):**
 ```
 python3 producer_nifi.py
+
 INFO:__main__:Запуск продюсера. Будет отправлено 10 сообщений...
 INFO:__main__:Отправлено сообщение 1/10: Сергей Павлов купил(а) Мышь за 1845.0 руб.
 INFO:__main__:Отправлено сообщение 2/10: Анна Лебедева купил(а) Наушники за 12664.0 руб.
