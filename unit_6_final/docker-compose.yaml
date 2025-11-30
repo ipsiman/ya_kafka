@@ -96,7 +96,7 @@ services:
     networks:
       - proxynet
 
-  # База данных PostgreSQL (источник данных)
+  # База данных PostgreSQL
   postgres:
     image: debezium/postgres:16
     hostname: postgres
