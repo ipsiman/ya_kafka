@@ -1,0 +1,8 @@
+{
+    "type": "record",
+    "name": "PurchaseKey",
+    "namespace": "example.ecommerce",
+    "fields": [
+        {"name": "order_id", "type": "string"}
+    ]
+}

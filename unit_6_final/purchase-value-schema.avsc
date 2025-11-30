@@ -1,0 +1,37 @@
+{
+  "type": "record",
+  "name": "Purchase",
+  "namespace": "example.ecommerce",
+  "fields": [
+    {
+      "name": "order_id",
+      "type": "string",
+      "doc": "Уникальный идентификатор заказа"
+    },
+    {
+      "name": "customer_name",
+      "type": "string",
+      "doc": "Имя клиента"
+    },
+    {
+      "name": "product_name",
+      "type": "string",
+      "doc": "Название товара"
+    },
+    {
+      "name": "quantity",
+      "type": "int",
+      "doc": "Количество товара"
+    },
+    {
+      "name": "amount",
+      "type": "double",
+      "doc": "Сумма покупки"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "doc": "Время покупки в миллисекундах"
+    }
+  ]
+}
