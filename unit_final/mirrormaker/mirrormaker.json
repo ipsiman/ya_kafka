@@ -1,0 +1,26 @@
+{
+  "name": "mirrormaker-connector",
+  "config": {
+    "connector.class": "org.apache.kafka.connect.mirror.MirrorSourceConnector",
+    "tasks.max": "1",
+    "topics": "shop-products,filtered-products,client-queries,banned-products,recommendations",
+    "source.cluster.alias": "primary",
+    "target.cluster.alias": "secondary",
+    "source.cluster.bootstrap.servers": "kafka-1:1092,kafka-2:2092,kafka-3:3092",
+    "source.cluster.security.protocol": "SASL_SSL",
+    "source.cluster.sasl.mechanism": "PLAIN",
+    "source.cluster.sasl.jaas.config": "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"admin\" password=\"admin-secret\";",
+    "source.cluster.ssl.truststore.location": "/etc/kafka/secrets/kafka.kafka-1.truststore.jks",
+    "source.cluster.ssl.truststore.password": "your-password",
+    "target.cluster.bootstrap.servers": "kafka-secondary-1:1192,kafka-secondary-2:1292,kafka-secondary-3:1392",
+    "target.cluster.security.protocol": "SASL_SSL",
+    "target.cluster.sasl.mechanism": "PLAIN",
+    "target.cluster.sasl.jaas.config": "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"admin\" password=\"admin-secret\";",
+    "target.cluster.ssl.truststore.location": "/etc/kafka/secrets/kafka.kafka-1.truststore.jks",
+    "target.cluster.ssl.truststore.password": "your-password",
+    "replication.factor": "3",
+    "checkpoints.topic.replication.factor": "3",
+    "heartbeats.topic.replication.factor": "3",
+    "offset-syncs.topic.replication.factor": "3"
+  }
+}
