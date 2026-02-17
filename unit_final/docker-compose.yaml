@@ -1,0 +1,383 @@
+x-kafka_controller:
+  &kafka_controller-env
+  CLUSTER_ID: "ciWo7IWazngRchmPES6q5A=="
+  KAFKA_PROCESS_ROLES: controller
+  KAFKA_CONTROLLER_QUORUM_VOTERS: 4000@kafka-controller-0:4090,5000@kafka-controller-1:5090
+  KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:SASL_SSL
+  KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+  KAFKA_AUTO_CREATE_TOPICS_ENABLE: false
+  KAFKA_OPTS: "-Djava.security.auth.login.config=/etc/kafka/secrets/kafka_server_jaas.conf"
+  KAFKA_AUTHORIZER_CLASS_NAME: org.apache.kafka.metadata.authorizer.StandardAuthorizer
+  KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: false
+  KAFKA_SUPER_USERS: User:admin
+  KAFKA_SASL_MECHANISM_CONTROLLER_PROTOCOL: PLAIN
+  KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
+  KAFKA_LISTENER_NAME_CONTROLLER_PLAIN_SASL_JAAS_CONFIG: org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="admin-secret" user_admin="admin-secret";
+  KAFKA_SECURITY_PROTOCOL: SASL_SSL
+  KAFKA_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.kafka-1.keystore.pkcs12
+  KAFKA_SSL_KEYSTORE_PASSWORD: your-password
+  KAFKA_SSL_KEY_PASSWORD: your-password
+  KAFKA_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.kafka-1.truststore.jks
+  KAFKA_SSL_TRUSTSTORE_PASSWORD: your-password
+  KAFKA_SSL_CLIENT_AUTH: required
+
+x-kafka_broker:
+  &kafka_broker-env
+  KAFKA_PROCESS_ROLES: broker
+  CLUSTER_ID: "ciWo7IWazngRchmPES6q5A=="
+  KAFKA_CONTROLLER_QUORUM_VOTERS: 4000@kafka-controller-0:4090,5000@kafka-controller-1:5090
+  KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: BROKER:SASL_SSL,CONTROLLER:SASL_SSL,INTERNAL:SASL_SSL
+  KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+  KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+  KAFKA_AUTO_CREATE_TOPICS_ENABLE: false
+  KAFKA_OPTS: "-Djava.security.auth.login.config=/etc/kafka/secrets/kafka_server_jaas.conf"
+  KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
+  KAFKA_SASL_MECHANISM_CONTROLLER_PROTOCOL: PLAIN
+  KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
+  KAFKA_LISTENER_NAME_BROKER_PLAIN_SASL_JAAS_CONFIG: org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="admin-secret" user_admin="admin-secret" user_shop_api="shop-api-secret" user_client_api="client-api-secret" user_faust="faust-secret" user_connect="connect-secret";
+  KAFKA_LISTENER_NAME_CONTROLLER_PLAIN_SASL_JAAS_CONFIG: org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="admin-secret" user_admin="admin-secret";
+  KAFKA_SECURITY_PROTOCOL: SASL_SSL
+  KAFKA_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.kafka-1.keystore.pkcs12
+  KAFKA_SSL_KEYSTORE_PASSWORD: your-password
+  KAFKA_SSL_KEY_PASSWORD: your-password
+  KAFKA_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.kafka-1.truststore.jks
+  KAFKA_SSL_TRUSTSTORE_PASSWORD: your-password
+  KAFKA_SSL_CLIENT_AUTH: required
+  KAFKA_AUTHORIZER_CLASS_NAME: org.apache.kafka.metadata.authorizer.StandardAuthorizer
+  KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: false
+  KAFKA_SUPER_USERS: User:admin
+  KAFKA_MIN_INSYNC_REPLICAS: 2
+  KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+
+services:
+  kafka-controller-0:
+    image: confluentinc/cp-kafka:7.4.4
+    ports:
+      - "4090:4090"
+    environment:
+      <<: *kafka_controller-env
+      KAFKA_NODE_ID: 4000
+      KAFKA_LISTENERS: CONTROLLER://:4090
+    volumes:
+      - ./kafka_creds:/etc/kafka/secrets
+    networks:
+      - proxynet
+
+  kafka-controller-1:
+    image: confluentinc/cp-kafka:7.4.4
+    ports:
+      - "5090:5090"
+    environment:
+      <<: *kafka_controller-env
+      KAFKA_NODE_ID: 5000
+      KAFKA_LISTENERS: CONTROLLER://:5090
+    volumes:
+      - ./kafka_creds:/etc/kafka/secrets
+    networks:
+      - proxynet
+
+  kafka-1:
+    image: confluentinc/cp-kafka:7.4.4
+    ports:
+      - "1090:1090"
+      - "9991:9991"
+    environment:
+      <<: *kafka_broker-env
+      KAFKA_NODE_ID: 1000
+      KAFKA_LISTENERS: BROKER://:1090,INTERNAL://:1092
+      KAFKA_ADVERTISED_LISTENERS: BROKER://localhost:1090,INTERNAL://kafka-1:1092
+      KAFKA_HEAP_OPTS: "-Xmx512m -Xms256m"
+      KAFKA_JMX_PORT: 9991
+      KAFKA_JMX_HOSTNAME: localhost
+    volumes:
+      - ./kafka_creds:/etc/kafka/secrets
+      - kafka_1_data:/var/lib/kafka/data
+    networks:
+      - proxynet
+
+  kafka-2:
+    image: confluentinc/cp-kafka:7.4.4
+    ports:
+      - "2090:2090"
+      - "9992:9992"
+    environment:
+      <<: *kafka_broker-env
+      KAFKA_NODE_ID: 2000
+      KAFKA_LISTENERS: BROKER://:2090,INTERNAL://:2092
+      KAFKA_ADVERTISED_LISTENERS: BROKER://localhost:2090,INTERNAL://kafka-2:2092
+      KAFKA_HEAP_OPTS: "-Xmx512m -Xms256m"
+      KAFKA_JMX_PORT: 9992
+      KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.kafka-2.keystore.pkcs12
+      KAFKA_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.kafka-2.truststore.jks
+    volumes:
+      - ./kafka_creds:/etc/kafka/secrets
+      - kafka_2_data:/var/lib/kafka/data
+    networks:
+      - proxynet
+
+  kafka-3:
+    image: confluentinc/cp-kafka:7.4.4
+    ports:
+      - "3090:3090"
+      - "9993:9993"
+    environment:
+      <<: *kafka_broker-env
+      KAFKA_NODE_ID: 3000
+      KAFKA_LISTENERS: BROKER://:3090,INTERNAL://:3092
+      KAFKA_ADVERTISED_LISTENERS: BROKER://localhost:3090,INTERNAL://kafka-3:3092
+      KAFKA_HEAP_OPTS: "-Xmx512m -Xms256m"
+      KAFKA_JMX_PORT: 9993
+      KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.kafka-3.keystore.pkcs12
+      KAFKA_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.kafka-3.truststore.jks
+    volumes:
+      - ./kafka_creds:/etc/kafka/secrets
+      - kafka_3_data:/var/lib/kafka/data
+    networks:
+      - proxynet
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka-1
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: primary-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-1:1092
+      KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: SASL_SSL
+      KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM: PLAIN
+      KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG: org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="admin-secret";
+      KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.kafka-1.truststore.jks
+      KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_PASSWORD: your-password
+      KAFKA_CLUSTERS_1_NAME: secondary-cluster
+      KAFKA_CLUSTERS_1_BOOTSTRAPSERVERS: kafka-secondary-1:1192
+      KAFKA_CLUSTERS_1_PROPERTIES_SECURITY_PROTOCOL: SASL_SSL
+      KAFKA_CLUSTERS_1_PROPERTIES_SASL_MECHANISM: PLAIN
+      KAFKA_CLUSTERS_1_PROPERTIES_SASL_JAAS_CONFIG: org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="admin-secret";
+      KAFKA_CLUSTERS_1_PROPERTIES_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.kafka-secondary-1.truststore.jks
+      KAFKA_CLUSTERS_1_PROPERTIES_SSL_TRUSTSTORE_PASSWORD: your-password
+    volumes:
+      - ./kafka_creds:/etc/kafka/secrets
+    networks:
+      - proxynet
+
+  postgres:
+    image: debezium/postgres:16
+    hostname: postgres
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres-user
+      POSTGRES_PASSWORD: postgres-pw
+      POSTGRES_DB: marketplace
+    volumes:
+      - ./sql_init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - proxynet
+
+  prometheus:
+    image: prom/prometheus:v2.30.3
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/alert.rules:/etc/prometheus/alert.rules
+    command: "--config.file=/etc/prometheus/prometheus.yml"
+    container_name: prometheus
+    networks:
+      - proxynet
+
+  grafana:
+    image: grafana/grafana:8.1.6
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      GF_PATHS_DATA: /var/lib/grafana
+      GF_SECURITY_ADMIN_PASSWORD: kafka
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    container_name: grafana
+    depends_on:
+      - prometheus
+    networks:
+      - proxynet
+
+  alertmanager:
+    image: prom/alertmanager:v0.21.0
+    restart: unless-stopped
+    container_name: alertmanager
+    volumes:
+      - ./monitoring/alertmanager/config.yml:/etc/alertmanager/config.yml
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+      - '--log.level=debug'
+    ports:
+      - "9093:9093"
+    networks:
+      - proxynet
+
+  kafka-connect:
+    build:
+      context: ./kafka-connect
+    ports:
+      - "8083:8083"
+      - "9875:9875"
+      - "9876:9876"
+    depends_on:
+      - kafka-1
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: kafka-1:1092,kafka-2:2092,kafka-3:3092
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: 'kafka-connect'
+      CONNECT_REST_ADVERTISED_HOST_NAME: 'localhost'
+
+      # Хранение конфигурации, смещений и статусов
+      CONNECT_CONFIG_STORAGE_TOPIC: 'connect-config-storage'
+      CONNECT_OFFSET_STORAGE_TOPIC: 'connect-offset-storage'
+      CONNECT_STATUS_STORAGE_TOPIC: 'connect-status-storage'
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 3
+
+      # Конвертеры
+      CONNECT_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_INTERNAL_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_INTERNAL_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+    
+      CONNECT_SECURITY_PROTOCOL: SASL_SSL
+      CONNECT_SASL_MECHANISM: PLAIN
+      CONNECT_SASL_JAAS_CONFIG: org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="admin-secret";
+      CONNECT_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.kafka-1.truststore.jks
+      CONNECT_SSL_TRUSTSTORE_PASSWORD: your-password
+
+      # Export JMX metrics to :9876/metrics for Prometheus
+      KAFKA_JMX_PORT: '9875'
+      KAFKA_OPTS: "-javaagent:/opt/jmx_prometheus_javaagent-0.15.0.jar=9876:/opt/kafka-connect.yml"
+
+      # Пути к плагинам
+      CONNECT_PLUGIN_PATH: /usr/share/java,/etc/kafka-connect/jars
+    volumes:
+      - ./confluent-hub-components/:/etc/kafka-connect/jars
+      - ./kafka_creds:/etc/kafka/secrets
+      - ./data:/data
+    networks:
+      - proxynet
+
+  faust-app:
+      build:
+        context: .
+        dockerfile: Dockerfile.faust
+      container_name: faust-app
+      depends_on:
+        - kafka-1
+        - kafka-2
+        - kafka-3
+      environment:
+        KAFKA_BROKER: "kafka://kafka-1:1092"
+        APP_STORE: "memory://"
+        APP_NAME: "product-filter"
+        KAFKA_USERNAME: "faust"
+        KAFKA_PASSWORD: "faust-secret"
+      volumes:
+        - ./kafka_creds:/etc/faust
+      networks:
+        - proxynet
+
+  # Второй кластер Kafka (для дублирования данных)
+  kafka-secondary-1:
+    image: confluentinc/cp-kafka:7.4.4
+    ports:
+      - "1190:1190"
+    environment:
+      <<: *kafka_broker-env
+      KAFKA_NODE_ID: 1100
+      KAFKA_LISTENERS: BROKER://:1190,INTERNAL://:1192
+      KAFKA_ADVERTISED_LISTENERS: BROKER://localhost:1190,INTERNAL://kafka-secondary-1:1192
+      KAFKA_HEAP_OPTS: "-Xmx512m -Xms256m"
+      KAFKA_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.kafka-secondary-1.keystore.pkcs12
+      KAFKA_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.kafka-secondary-1.truststore.jks
+    volumes:
+      - ./kafka_creds:/etc/kafka/secrets
+      - kafka_secondary_1_data:/var/lib/kafka/data
+    networks:
+      - proxynet
+
+  kafka-secondary-2:
+    image: confluentinc/cp-kafka:7.4.4
+    ports:
+      - "1290:1290"
+    environment:
+      <<: *kafka_broker-env
+      KAFKA_NODE_ID: 1200
+      KAFKA_LISTENERS: BROKER://:1290,INTERNAL://:1292
+      KAFKA_ADVERTISED_LISTENERS: BROKER://localhost:1290,INTERNAL://kafka-secondary-2:1292
+      KAFKA_HEAP_OPTS: "-Xmx512m -Xms256m"
+      KAFKA_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.kafka-secondary-2.keystore.pkcs12
+      KAFKA_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.kafka-secondary-2.truststore.jks
+    volumes:
+      - ./kafka_creds:/etc/kafka/secrets
+      - kafka_secondary_2_data:/var/lib/kafka/data
+    networks:
+      - proxynet
+
+  kafka-secondary-3:
+    image: confluentinc/cp-kafka:7.4.4
+    ports:
+      - "1390:1390"
+    environment:
+      <<: *kafka_broker-env
+      KAFKA_NODE_ID: 1300
+      KAFKA_LISTENERS: BROKER://:1390,INTERNAL://:1392
+      KAFKA_ADVERTISED_LISTENERS: BROKER://localhost:1390,INTERNAL://kafka-secondary-3:1392
+      KAFKA_HEAP_OPTS: "-Xmx512m -Xms256m"
+      KAFKA_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.kafka-secondary-3.keystore.pkcs12
+      KAFKA_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.kafka-secondary-3.truststore.jks
+    volumes:
+      - ./kafka_creds:/etc/kafka/secrets
+      - kafka_secondary_3_data:/var/lib/kafka/data
+    networks:
+      - proxynet
+
+  # Kafka MirrorMaker 2 для дублирования данных между кластерами
+  kafka-mirrormaker:
+    image: confluentinc/cp-kafka:7.4.4
+    command:
+      - bash
+      - -c
+      - |
+        echo "Запуск Kafka MirrorMaker 2..."
+        export KAFKA_LOG4J_OPTS="-Dlog4J.configuration=file:/etc/kafka/connect-log4j.properties"
+        connect-mirror-maker /etc/kafka/mirrormaker/mirrormaker.properties
+    volumes:
+      - ./mirrormaker:/etc/kafka/mirrormaker
+      - ./kafka_creds:/etc/kafka/secrets
+    networks:
+      - proxynet
+    depends_on:
+      - kafka-1
+      - kafka-2
+      - kafka-3
+      - kafka-secondary-1
+      - kafka-secondary-2
+      - kafka-secondary-3
+
+networks:
+  proxynet:
+    name: marketplace_network
+
+volumes:
+  kafka_1_data:
+  kafka_2_data:
+  kafka_3_data:
+  kafka_secondary_1_data:
+  kafka_secondary_2_data:
+  kafka_secondary_3_data:
